@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hajj Pilgrim Forecast — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  /* ─── Design tokens ─────────────────────────────────────── */
+  :root {
+    --bg:           #FAFAF7;
+    --bg-card:      #FFFFFF;
+    --bg-hero:      #1A2332;
+    --bg-hero-2:    #243447;
+    --text:         #1A2332;
+    --text-soft:    #5A6478;
+    --text-muted:   #8B95A8;
+    --accent:       #2E5266;
+    --accent-2:     #E76F51;
+    --accent-3:     #F4A261;
+    --accent-4:     #1B7837;
+    --border:       #E8EAED;
+    --border-soft:  #F0F2F5;
+    --shadow-sm:    0 1px 2px rgba(26,35,50,.04);
+    --shadow:       0 4px 12px rgba(26,35,50,.06), 0 1px 3px rgba(26,35,50,.04);
+    --shadow-lg:    0 12px 32px rgba(26,35,50,.08), 0 2px 6px rgba(26,35,50,.04);
+    --radius-sm:    8px;
+    --radius:       14px;
+    --radius-lg:    20px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* ─── Hero ─────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, var(--bg-hero) 0%, var(--bg-hero-2) 100%);
+    color: white;
+    padding: 80px 48px 100px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(244,162,97,0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -40%; left: -5%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(46,82,102,0.4) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-content {
+    position: relative;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .hero-eyebrow {
+    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--accent-3);
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 20px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent-3);
+    font-weight: 800;
+  }
+  .hero-sub {
+    font-size: 17px;
+    color: rgba(255,255,255,0.72);
+    max-width: 680px;
+    line-height: 1.65;
+    margin: 0 0 36px;
+  }
+  .hero-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 56px;
+    margin-top: 36px;
+    padding-top: 36px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .stat-block .stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: white;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat-block .stat-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.6);
+    font-weight: 500;
+  }
+
+  /* ─── Container ───────────────────────────────────────── */
+  .container {
+    max-width: 1400px;
+    margin: -56px auto 80px;
+    padding: 0 32px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ─── Section card ────────────────────────────────────── */
+  .section {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 48px;
+    margin-bottom: 32px;
+    border: 1px solid var(--border-soft);
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 32px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .section-title-block { flex: 1; min-width: 280px; }
+  .section-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent-2);
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    margin: 0 0 6px;
+    line-height: 1.15;
+  }
+  .section-desc {
+    color: var(--text-soft);
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0;
+    max-width: 560px;
+  }
+
+  /* ─── Controls ────────────────────────────────────────── */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    margin-bottom: 28px;
+    align-items: start;
+  }
+  @media (max-width: 880px) {
+    .controls { grid-template-columns: 1fr; }
+  }
+
+  .control-group { display: flex; flex-direction: column; gap: 10px; }
+  .control-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+
+  /* Chart type toggle */
+  .toggle-group {
+    display: inline-flex;
+    background: var(--border-soft);
+    border-radius: var(--radius);
+    padding: 4px;
+    gap: 2px;
+  }
+  .toggle-btn {
+    border: none;
+    background: transparent;
+    padding: 9px 18px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-soft);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+  }
+  .toggle-btn:hover {
+    color: var(--text);
+    background: rgba(255,255,255,0.6);
+  }
+  .toggle-btn.active {
+    background: var(--bg-card);
+    color: var(--accent);
+    box-shadow: var(--shadow-sm);
+    font-weight: 600;
+  }
+
+  /* Nationality chips */
+  .nat-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  .nat-chip {
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text-soft);
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    user-select: none;
+    font-family: inherit;
+  }
+  .nat-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .nat-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .nat-chip-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .nat-chip-action {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .nat-chip-action:hover { text-decoration: underline; }
+
+  /* Sub-toggle for actual/predicted */
+  .pill-toggle {
+    display: inline-flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .pill-toggle label {
+    cursor: pointer;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-soft);
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .pill-toggle input[type="checkbox"] { display: none; }
+  .pill-toggle input[type="checkbox"]:checked + span {
+    background: var(--text);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+  .pill-toggle label:has(input:checked) {
+    background: var(--text);
+    color: white;
+    border-color: var(--text);
+  }
+
+  /* ─── Plot area ─────────────────────────────────────── */
+  .plot-area {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 16px;
+    min-height: 480px;
+    border: 1px solid var(--border-soft);
+  }
+
+  /* ─── Footer / footnote ──────────────────────────────── */
+  .meta-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-footer .badge {
+    background: var(--border-soft);
+    color: var(--text-soft);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* ─── Page footer ───────────────────────────────────── */
+  .page-footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 32px;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+
+  /* ─── Loading state ─────────────────────────────────── */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 480px;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Error message ─────────────────────────────────── */
+  .error-banner {
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: #991B1B;
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    margin: 24px;
+    font-size: 14px;
+  }
+  .error-banner code {
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ─── Hero ─── -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Hajj Pilgrim Forecast · Season 1446</div>
+      <h1>Predicting <em>arrival</em>, <em>stay</em>, and <em>departure</em> patterns of Hajj pilgrims.</h1>
+      <p class="hero-sub">An interactive forecast built on three XGBoost models trained on 2.3 million pilgrim records across the 1445 and 1446 seasons. Explore by nationality, switch chart styles, and compare predicted patterns against observed data.</p>
+      <div class="hero-stats" id="hero-stats">
+        <div class="stat-block"><div class="stat-value" id="stat-pilgrims">—</div><div class="stat-label">Pilgrims modeled</div></div>
+        <div class="stat-block"><div class="stat-value">20</div><div class="stat-label">Nationalities</div></div>
+        <div class="stat-block"><div class="stat-value">1.60d</div><div class="stat-label">Departure MAE</div></div>
+        <div class="stat-block"><div class="stat-value">2.31d</div><div class="stat-label">Length-of-stay MAE</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Sections ─── -->
+  <main class="container">
+
+    <!-- Arrivals -->
+    <section class="section" id="sec-arrivals">
+      <div class="section-header">
+        <div class="section-title-block">
+          <div class="section-tag">01 · Arrivals</div>
+          <h2>When pilgrims arrive in Saudi Arabia</h2>
+          <p class="section-desc">Cumulative and daily arrival patterns across the lead-up to Hajj. Most pilgrims land between 20 Dhul Qaʿdah and 5 Dhul Hijjah.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <span class="control-label">Nationalities</span>
+          <div class="nat-chips" id="chips-arrivals"></div>
+          <div class="nat-chip-actions">
+            <button class="nat-chip-action" data-target="arrivals" data-action="all">Select all</button>
+            <button class="nat-chip-action" data-target="arrivals" data-action="top5">Top 5 only</button>
+            <button class="nat-chip-action" data-target="arrivals" data-action="none">Clear</button>
+          </div>
+          <div class="pill-toggle">
+            <label><input type="checkbox" id="show-actual-arrivals" /><span>Compare with actual</span></label>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="control-label">Chart type</span>
+          <div class="toggle-group" data-section="arrivals">
+            <button class="toggle-btn active" data-type="cumulative">Cumulative</button>
+            <button class="toggle-btn"        data-type="daily">Daily</button>
+            <button class="toggle-btn"        data-type="stacked">Stacked area</button>
+            <button class="toggle-btn"        data-type="heatmap">Heatmap</button>
+            <button class="toggle-btn"        data-type="ridgeline">Ridgeline</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="plot-area" id="plot-arrivals"><div class="loading"><div class="spinner"></div><span>Loading data…</span></div></div>
+
+      <div class="meta-footer">
+        <span>XGBoost v2 · target-encoded</span>
+        <span class="badge" id="arr-mae">arrival MAE: ~6.0d</span>
+      </div>
+    </section>
+
+    <!-- Length of stay -->
+    <section class="section" id="sec-stay">
+      <div class="section-header">
+        <div class="section-title-block">
+          <div class="section-tag">02 · Length of stay</div>
+          <h2>How long pilgrims stay</h2>
+          <p class="section-desc">Most Hajj packages run 30–45 days. Differences across nationalities reflect package conventions and visa rules — Bangladesh and Indonesia tend to extend, Iraq and Tunisia run shorter.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <span class="control-label">Nationalities</span>
+          <div class="nat-chips" id="chips-stay"></div>
+          <div class="nat-chip-actions">
+            <button class="nat-chip-action" data-target="stay" data-action="all">Select all</button>
+            <button class="nat-chip-action" data-target="stay" data-action="top5">Top 5 only</button>
+            <button class="nat-chip-action" data-target="stay" data-action="none">Clear</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="control-label">Chart type</span>
+          <div class="toggle-group" data-section="stay">
+            <button class="toggle-btn active" data-type="bars">Mean bars</button>
+            <button class="toggle-btn"        data-type="box">Box & whisker</button>
+            <button class="toggle-btn"        data-type="distribution">Distribution</button>
+            <button class="toggle-btn"        data-type="scatter">Predicted vs actual</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="plot-area" id="plot-stay"><div class="loading"><div class="spinner"></div><span>Loading data…</span></div></div>
+
+      <div class="meta-footer">
+        <span>XGBoost v2 · MAE 2.31 days · R² 0.872</span>
+        <span class="badge">stay MAE: 2.31d</span>
+      </div>
+    </section>
+
+    <!-- Departures -->
+    <section class="section" id="sec-departures">
+      <div class="section-header">
+        <div class="section-title-block">
+          <div class="section-tag">03 · Departures</div>
+          <h2>When pilgrims leave</h2>
+          <p class="section-desc">Departures concentrate sharply after Eid al-Adha. The shape is steeper than arrivals — pilgrims arrive over weeks but leave in days, peaking around 28 Dhul Hijjah.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <span class="control-label">Nationalities</span>
+          <div class="nat-chips" id="chips-departures"></div>
+          <div class="nat-chip-actions">
+            <button class="nat-chip-action" data-target="departures" data-action="all">Select all</button>
+            <button class="nat-chip-action" data-target="departures" data-action="top5">Top 5 only</button>
+            <button class="nat-chip-action" data-target="departures" data-action="none">Clear</button>
+          </div>
+          <div class="pill-toggle">
+            <label><input type="checkbox" id="show-actual-departures" /><span>Compare with actual</span></label>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="control-label">Chart type</span>
+          <div class="toggle-group" data-section="departures">
+            <button class="toggle-btn active" data-type="cumulative">Cumulative</button>
+            <button class="toggle-btn"        data-type="daily">Daily</button>
+            <button class="toggle-btn"        data-type="stacked">Stacked area</button>
+            <button class="toggle-btn"        data-type="heatmap">Heatmap</button>
+            <button class="toggle-btn"        data-type="ridgeline">Ridgeline</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="plot-area" id="plot-departures"><div class="loading"><div class="spinner"></div><span>Loading data…</span></div></div>
+
+      <div class="meta-footer">
+        <span>XGBoost v2 · MAE 1.60 days · R² 0.814</span>
+        <span class="badge">departure MAE: 1.60d</span>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="page-footer">
+    Built with three XGBoost regressors and Plotly.js · Hajj 1446 dataset · Top 20 nationalities
+  </footer>
+
+<script>
+/* ─────────────────────────────────────────────────────────
+   STATE
+   ───────────────────────────────────────────────────────── */
+const STATE = {
+  data: null,
+  selected: { arrivals: [], stay: [], departures: [] },
+  chartType: { arrivals: 'cumulative', stay: 'bars', departures: 'cumulative' },
+  showActual: { arrivals: false, departures: false },
+};
+
+/* Color palette — clean, brand-consistent */
+const PALETTE = [
+  '#2E5266', '#E76F51', '#1B7837', '#F4A261', '#6A4C93',
+  '#264653', '#E9C46A', '#8AB17D', '#BC4749', '#4A6FA5',
+  '#A98467', '#5C5470', '#EF8354', '#2A9D8F', '#BB4430',
+  '#7768AE', '#386641', '#BC8034', '#577590', '#90BE6D',
+];
+const colorFor = (nat, list) => PALETTE[list.indexOf(nat) % PALETTE.length];
+
+/* ─────────────────────────────────────────────────────────
+   LOAD
+   ───────────────────────────────────────────────────────── */
+async function loadData() {
+  try {
+    const res = await fetch('dashboard_data.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    STATE.data = await res.json();
+  } catch (e) {
+    document.querySelectorAll('.plot-area').forEach(el => {
+      el.innerHTML = `<div class="error-banner">
+        <strong>Couldn't load data.</strong><br><br>
+        Run <code>python build_dashboard_data.py</code> first to create
+        <code>dashboard_data.json</code>, and make sure that file is in
+        the same folder as this HTML. If you're opening this file directly
+        from disk, your browser may block local file loads — try
+        <code>python -m http.server</code> in the project folder, then
+        open <code>http://localhost:8000/dashboard.html</code>.
+        <br><br>Error: ${e.message}
+      </div>`;
+    });
+    return;
+  }
+
+  // Initial selection: top 5 by total volume
+  const top5 = STATE.data.nationalities.slice(0, 5);
+  STATE.selected.arrivals   = [...top5];
+  STATE.selected.stay       = [...top5];
+  STATE.selected.departures = [...top5];
+
+  document.getElementById('stat-pilgrims').textContent =
+    STATE.data.meta.n_pilgrims.toLocaleString();
+
+  buildChips('arrivals');
+  buildChips('stay');
+  buildChips('departures');
+  attachControls();
+
+  renderAll();
+}
+
+/* ─────────────────────────────────────────────────────────
+   CONTROLS
+   ───────────────────────────────────────────────────────── */
+function buildChips(section) {
+  const container = document.getElementById('chips-' + section);
+  container.innerHTML = '';
+  STATE.data.nationalities.forEach(nat => {
+    const btn = document.createElement('button');
+    btn.className = 'nat-chip';
+    btn.dataset.nat = nat;
+    btn.textContent = nat;
+    if (STATE.selected[section].includes(nat)) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      const list = STATE.selected[section];
+      if (list.includes(nat)) {
+        STATE.selected[section] = list.filter(x => x !== nat);
+        btn.classList.remove('active');
+      } else {
+        STATE.selected[section].push(nat);
+        btn.classList.add('active');
+      }
+      render(section);
+    });
+    container.appendChild(btn);
+  });
+}
+
+function attachControls() {
+  // Toggle chart type
+  document.querySelectorAll('.toggle-group').forEach(group => {
+    const section = group.dataset.section;
+    group.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        group.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        STATE.chartType[section] = btn.dataset.type;
+        render(section);
+      });
+    });
+  });
+
+  // Quick-select buttons
+  document.querySelectorAll('.nat-chip-action').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      const action = btn.dataset.action;
+      if (action === 'all')   STATE.selected[target] = [...STATE.data.nationalities];
+      if (action === 'top5')  STATE.selected[target] = STATE.data.nationalities.slice(0, 5);
+      if (action === 'none')  STATE.selected[target] = [];
+      // sync chip UI
+      document.querySelectorAll(`#chips-${target} .nat-chip`).forEach(chip => {
+        chip.classList.toggle('active', STATE.selected[target].includes(chip.dataset.nat));
+      });
+      render(target);
+    });
+  });
+
+  // Compare-with-actual toggles
+  ['arrivals', 'departures'].forEach(section => {
+    const cb = document.getElementById('show-actual-' + section);
+    if (cb) cb.addEventListener('change', () => {
+      STATE.showActual[section] = cb.checked;
+      render(section);
+    });
+  });
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER ROUTER
+   ───────────────────────────────────────────────────────── */
+function renderAll() {
+  render('arrivals');
+  render('stay');
+  render('departures');
+}
+function render(section) {
+  const div = document.getElementById('plot-' + section);
+  if (!STATE.data) return;
+
+  const sel = STATE.selected[section];
+  if (sel.length === 0) {
+    div.innerHTML = `<div class="loading"><span style="color:var(--text-muted);font-size:14px">
+      Select one or more nationalities above to view the chart.
+    </span></div>`;
+    return;
+  }
+  div.innerHTML = '';
+
+  if (section === 'arrivals')   renderTimeSeries(div, 'arrivals',   STATE.data.arr_days, STATE.data.hijri_labels.arrivals);
+  if (section === 'departures') renderTimeSeries(div, 'departures', STATE.data.dep_days, STATE.data.hijri_labels.departures);
+  if (section === 'stay')       renderStay(div);
+}
+
+/* ─────────────────────────────────────────────────────────
+   ARRIVALS / DEPARTURES
+   ───────────────────────────────────────────────────────── */
+function renderTimeSeries(div, section, days, labels) {
+  const type = STATE.chartType[section];
+  const sel  = STATE.selected[section];
+  const showActual = STATE.showActual[section];
+  const dataSrc = STATE.data[section].predicted;
+  const actualSrc = STATE.data[section].actual;
+
+  const traces = [];
+
+  if (type === 'cumulative' || type === 'daily' || type === 'stacked') {
+    sel.forEach(nat => {
+      const ys = dataSrc[nat];
+      const data = type === 'cumulative' ? cumsum(ys) : ys;
+      const trace = {
+        x: labels, y: data,
+        name: nat,
+        type: type === 'stacked' ? 'scatter' : 'scatter',
+        mode: 'lines',
+        line: { width: 2.4, color: colorFor(nat, STATE.data.nationalities), shape: 'spline' },
+        hovertemplate: `<b>${nat}</b><br>%{x}<br>${type === 'cumulative' ? 'Cumulative' : 'Daily'}: %{y:,}<extra></extra>`,
+      };
+      if (type === 'stacked') { trace.stackgroup = 'one'; trace.fill = 'tonexty'; trace.fillcolor = colorFor(nat, STATE.data.nationalities) + '90'; }
+      traces.push(trace);
+
+      if (showActual) {
+        const ys_act = actualSrc[nat];
+        const data_act = type === 'cumulative' ? cumsum(ys_act) : ys_act;
+        traces.push({
+          x: labels, y: data_act,
+          name: nat + ' (actual)',
+          type: 'scatter', mode: 'lines',
+          line: { width: 1.4, color: colorFor(nat, STATE.data.nationalities), dash: 'dot' },
+          showlegend: false,
+          hovertemplate: `<b>${nat}</b> (actual)<br>%{x}<br>%{y:,}<extra></extra>`,
+        });
+      }
+    });
+  }
+
+  if (type === 'heatmap') {
+    const z = sel.map(nat => dataSrc[nat]);
+    traces.push({
+      type: 'heatmap',
+      x: labels, y: sel, z: z,
+      colorscale: [[0, '#FFFEF5'], [0.2, '#F4A261'], [0.5, '#E76F51'], [1, '#7B1E1E']],
+      hovertemplate: '<b>%{y}</b><br>%{x}<br>Pilgrims: %{z:,}<extra></extra>',
+      colorbar: { title: 'Pilgrims', thickness: 12, len: 0.8 },
+    });
+  }
+
+  if (type === 'ridgeline') {
+    sel.slice().reverse().forEach((nat, i) => {
+      const ys = dataSrc[nat];
+      const maxY = Math.max(...ys, 1);
+      const norm = ys.map(v => v / maxY);
+      const baseline = i;
+      traces.push({
+        x: labels, y: norm.map(v => baseline + v * 0.85),
+        name: nat,
+        type: 'scatter', mode: 'lines',
+        fill: 'tonexty',
+        fillcolor: colorFor(nat, STATE.data.nationalities) + '88',
+        line: { color: colorFor(nat, STATE.data.nationalities), width: 1.5 },
+        hovertemplate: `<b>${nat}</b><br>%{x}<br>(normalized intensity)<extra></extra>`,
+      });
+      // baseline trace (transparent) so fill anchors correctly
+      traces.unshift({
+        x: labels, y: Array(labels.length).fill(baseline),
+        type: 'scatter', mode: 'lines',
+        line: { width: 0, color: 'rgba(0,0,0,0)' },
+        showlegend: false, hoverinfo: 'skip',
+      });
+    });
+  }
+
+  const layout = {
+    margin: { t: 20, l: 60, r: 30, b: 60 },
+    xaxis: {
+      tickangle: -30, gridcolor: '#EEF0F3', zerolinecolor: '#E0E0E0',
+      tickfont: { size: 11, color: '#5A6478' },
+    },
+    yaxis: {
+      gridcolor: '#EEF0F3', zerolinecolor: '#E0E0E0',
+      tickfont: { size: 11, color: '#5A6478' },
+      title: type === 'cumulative' ? { text: 'Cumulative pilgrims', font: { size: 12, color: '#5A6478' } }
+           : type === 'daily'      ? { text: 'Daily pilgrims',      font: { size: 12, color: '#5A6478' } }
+           : type === 'stacked'    ? { text: 'Stacked daily count', font: { size: 12, color: '#5A6478' } }
+           : type === 'ridgeline'  ? { showticklabels: false }
+           : {},
+    },
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    hovermode: type === 'heatmap' ? 'closest' : 'x unified',
+    height: 480,
+    font: { family: 'Inter, sans-serif', color: '#1A2332' },
+    legend: { orientation: 'h', y: -0.18, xanchor: 'left', x: 0, font: { size: 11 } },
+    showlegend: type !== 'ridgeline' && type !== 'heatmap',
+  };
+
+  Plotly.newPlot(div, traces, layout, { displayModeBar: false, responsive: true });
+}
+
+/* ─────────────────────────────────────────────────────────
+   LENGTH OF STAY
+   ───────────────────────────────────────────────────────── */
+function renderStay(div) {
+  const type = STATE.chartType.stay;
+  const sel  = STATE.selected.stay;
+  const stay = STATE.data.stay;
+  const traces = [];
+
+  if (type === 'bars') {
+    const sorted = sel.slice().sort((a, b) => stay[a].mean_pred - stay[b].mean_pred);
+    traces.push({
+      type: 'bar', orientation: 'h',
+      x: sorted.map(n => stay[n].mean_pred),
+      y: sorted, name: 'Predicted',
+      marker: { color: '#2E5266' },
+      hovertemplate: '<b>%{y}</b><br>Predicted mean: %{x:.2f} days<extra></extra>',
+    });
+    traces.push({
+      type: 'bar', orientation: 'h',
+      x: sorted.map(n => stay[n].mean_actual),
+      y: sorted, name: 'Actual',
+      marker: { color: '#E76F51' },
+      hovertemplate: '<b>%{y}</b><br>Actual mean: %{x:.2f} days<extra></extra>',
+    });
+  }
+  if (type === 'box') {
+    const sorted = sel.slice().sort((a, b) => stay[a].mean_actual - stay[b].mean_actual);
+    sorted.forEach(nat => {
+      const s = stay[nat];
+      traces.push({
+        type: 'box', name: nat,
+        q1: [s.p25_actual], median: [s.median_actual], q3: [s.p75_actual],
+        lowerfence: [Math.max(0, s.p25_actual - 1.5 * (s.p75_actual - s.p25_actual))],
+        upperfence: [s.p75_actual + 1.5 * (s.p75_actual - s.p25_actual)],
+        mean: [s.mean_actual],
+        orientation: 'h', y: [nat],
+        marker: { color: colorFor(nat, STATE.data.nationalities) },
+        hovertemplate: `<b>${nat}</b><br>median: %{median:.1f}<br>IQR: %{q1:.1f}–%{q3:.1f}<extra></extra>`,
+      });
+    });
+  }
+  if (type === 'distribution') {
+    const bins = STATE.data.stay_bins.slice(0, -1);
+    sel.forEach(nat => {
+      const s = stay[nat];
+      const total = s.actual_hist.reduce((a, b) => a + b, 0);
+      const norm = s.actual_hist.map(v => total ? v / total : 0);
+      traces.push({
+        x: bins, y: norm,
+        name: nat, type: 'scatter', mode: 'lines',
+        line: { color: colorFor(nat, STATE.data.nationalities), width: 2.4, shape: 'spline' },
+        fill: 'tozeroy',
+        fillcolor: colorFor(nat, STATE.data.nationalities) + '22',
+        hovertemplate: `<b>${nat}</b><br>%{x} days<br>%{y:.1%} of pilgrims<extra></extra>`,
+      });
+    });
+  }
+  if (type === 'scatter') {
+    traces.push({
+      type: 'scatter', mode: 'markers+text',
+      x: sel.map(n => stay[n].mean_actual),
+      y: sel.map(n => stay[n].mean_pred),
+      text: sel,
+      textposition: 'top right',
+      textfont: { size: 10, color: '#5A6478' },
+      marker: {
+        size: sel.map(n => Math.sqrt(stay[n].n) / 6 + 8),
+        color: sel.map(n => colorFor(n, STATE.data.nationalities)),
+        opacity: 0.75, line: { color: 'white', width: 2 },
+      },
+      hovertemplate: '<b>%{text}</b><br>actual: %{x:.2f}d<br>predicted: %{y:.2f}d<extra></extra>',
+      showlegend: false,
+    });
+    const xs = sel.map(n => stay[n].mean_actual);
+    const ys = sel.map(n => stay[n].mean_pred);
+    const lo = Math.min(...xs, ...ys) - 1;
+    const hi = Math.max(...xs, ...ys) + 1;
+    traces.push({
+      x: [lo, hi], y: [lo, hi],
+      type: 'scatter', mode: 'lines',
+      line: { color: '#8B95A8', dash: 'dash', width: 1.2 },
+      name: 'perfect prediction',
+      hoverinfo: 'skip',
+    });
+  }
+
+  const layout = {
+    margin: { t: 20, l: 120, r: 30, b: 60 },
+    xaxis: { gridcolor: '#EEF0F3', tickfont: { size: 11, color: '#5A6478' },
+             title: type === 'distribution' ? { text: 'Length of stay (days)', font: { size: 12, color: '#5A6478' } }
+                  : type === 'scatter'      ? { text: 'Actual mean (days)',     font: { size: 12, color: '#5A6478' } }
+                  : { text: 'Mean length of stay (days)', font: { size: 12, color: '#5A6478' } },
+    },
+    yaxis: { gridcolor: '#EEF0F3', tickfont: { size: 11, color: '#5A6478' },
+             title: type === 'distribution' ? { text: 'Share of pilgrims', font: { size: 12, color: '#5A6478' } }
+                  : type === 'scatter'      ? { text: 'Predicted mean (days)', font: { size: 12, color: '#5A6478' } }
+                  : {},
+             tickformat: type === 'distribution' ? '.0%' : '',
+    },
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    height: 520,
+    barmode: 'group',
+    boxmode: 'group',
+    font: { family: 'Inter, sans-serif', color: '#1A2332' },
+    legend: { orientation: 'h', y: -0.18, x: 0, font: { size: 11 } },
+    showlegend: type !== 'box' && type !== 'scatter',
+  };
+  Plotly.newPlot(div, traces, layout, { displayModeBar: false, responsive: true });
+}
+
+/* ─────────────────────────────────────────────────────────
+   UTILS
+   ───────────────────────────────────────────────────────── */
+function cumsum(arr) {
+  const out = [];
+  let total = 0;
+  for (const v of arr) { total += v; out.push(total); }
+  return out;
+}
+
+loadData();
+</script>
+</body>
+</html>
